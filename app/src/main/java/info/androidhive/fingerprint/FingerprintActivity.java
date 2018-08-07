@@ -3,7 +3,9 @@ package info.androidhive.fingerprint;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.KeyguardManager;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.Signature;
 import android.hardware.fingerprint.FingerprintManager;
 import android.os.Build;
 import android.security.keystore.KeyGenParameterSpec;
@@ -12,16 +14,21 @@ import android.security.keystore.KeyProperties;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Base64;
+import android.util.Log;
 import android.widget.TextView;
+
 import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
@@ -40,6 +47,27 @@ public class FingerprintActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_fingerprint);
 
+        // Add code to print out the key hash
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(
+                    "info.androidhive.fingerprint",
+                    PackageManager.GET_SIGNATURES);
+            for (Signature signature : info.signatures) {
+                MessageDigest md = MessageDigest.getInstance("SHA");
+                md.update(signature.toByteArray());
+                Log.d("KeyHash:", Base64.encodeToString(md.digest(), Base64.DEFAULT));
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+
+        } catch (NoSuchAlgorithmException e) {
+
+        }
+
+
+
+
+
+
         // Initializing both Android Keyguard Manager and Fingerprint Manager
         KeyguardManager keyguardManager = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
         FingerprintManager fingerprintManager = (FingerprintManager) getSystemService(FINGERPRINT_SERVICE);
@@ -47,7 +75,7 @@ public class FingerprintActivity extends AppCompatActivity {
         textView = (TextView) findViewById(R.id.errorText);
 
         // Check whether the device has a Fingerprint sensor.
-        if(!fingerprintManager.isHardwareDetected()){
+        if (!fingerprintManager.isHardwareDetected()) {
             /**
              * An error message will be displayed if the device does not contain the fingerprint hardware.
              * However if you plan to implement a default authentication method,
@@ -57,19 +85,19 @@ public class FingerprintActivity extends AppCompatActivity {
              * startActivity(intent);
              */
             textView.setText("Your Device does not have a Fingerprint Sensor");
-        }else {
+        } else {
             // Checks whether fingerprint permission is set on manifest
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.USE_FINGERPRINT) != PackageManager.PERMISSION_GRANTED) {
                 textView.setText("Fingerprint authentication permission not enabled");
-            }else{
+            } else {
                 // Check whether at least one fingerprint is registered
                 if (!fingerprintManager.hasEnrolledFingerprints()) {
                     textView.setText("Register at least one fingerprint in Settings");
-                }else{
+                } else {
                     // Checks whether lock screen security is enabled or not
                     if (!keyguardManager.isKeyguardSecure()) {
                         textView.setText("Lock screen security not enabled in Settings");
-                    }else{
+                    } else {
                         generateKey();
 
                         if (cipherInit()) {
